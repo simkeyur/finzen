@@ -6,7 +6,7 @@
   "scope": "/finzen/",
   "display": "standalone",
   "background_color": "#0a0e27",
-  "theme_color": "#00acc1",
+  "theme_color": "#0f1428",
   "orientation": "portrait-primary",
   "icons": [
     {

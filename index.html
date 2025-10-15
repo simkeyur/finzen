@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="AI-powered financial calculator for retirement, mortgage, loan, and investment planning">
-  <meta name="theme-color" content="#00acc1">
+  <meta name="theme-color" content="#0f1428">
   <title>FinZen - AI Financial Calculator</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/192.png">
@@ -20,7 +20,23 @@
     <button class="tab" data-tab="mortgage">Mortgage</button>
     <button class="tab" data-tab="loan">Loan</button>
     <button class="tab" data-tab="investment">Investment</button>
+    <button class="settings-icon" id="settings-btn" aria-label="Settings">⚙️</button>
   </nav>
+  
+  <!-- Settings Modal -->
+  <div class="settings-modal" id="settings-modal">
+    <div class="settings-content">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button class="close-btn" id="close-settings">×</button>
+      </div>
+      <div class="settings-body">
+        <button class="reset-button" id="reset-app">Reset App</button>
+        <p class="settings-info">This will clear all saved data and reload the app.</p>
+      </div>
+    </div>
+  </div>
+  
   <main>
     <section id="retirement" class="calculator active">
       <h2>Retirement Calculator</h2>
@@ -191,7 +207,6 @@
       </div>
     </section>
   </main>
-  <button class="reset-button" id="reset-app">Reset App</button>
   <script src="js/app.js"></script>
 </body>
 </html>

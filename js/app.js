@@ -466,6 +466,26 @@ function loadSavedData() {
   }
 }
 
+// Settings modal functionality
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettings = document.getElementById('close-settings');
+
+settingsBtn.addEventListener('click', () => {
+  settingsModal.classList.add('active');
+});
+
+closeSettings.addEventListener('click', () => {
+  settingsModal.classList.remove('active');
+});
+
+// Close modal when clicking outside
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) {
+    settingsModal.classList.remove('active');
+  }
+});
+
 // Reset app functionality
 document.getElementById('reset-app').addEventListener('click', () => {
   if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
