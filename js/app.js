@@ -1,3 +1,9 @@
+// Set default dates to today
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('mort-start-date').value = today;
+document.getElementById('loan-start-date').value = today;
+document.getElementById('inv-start-date').value = today;
+
 // Tab switching
 const tabs = document.querySelectorAll('.tab');
 const calculators = document.querySelectorAll('.calculator');
@@ -79,6 +85,19 @@ mortDownToggle.addEventListener('change', function() {
   }
 });
 
+// Loan term toggle handler
+const loanTermToggle = document.getElementById('loan-term-toggle');
+const loanTermInput = document.getElementById('loan-term');
+
+loanTermToggle.addEventListener('change', function() {
+  loanTermInput.value = '';
+  if (this.checked) {
+    loanTermInput.placeholder = 'Years';
+  } else {
+    loanTermInput.placeholder = 'Months';
+  }
+});
+
 // Calculator functions
 function formatCurrency(amount) {
   return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -86,16 +105,21 @@ function formatCurrency(amount) {
 
 function calculateInvestment() {
   const initial = parseFloat(document.getElementById('inv-initial').value.replace(/,/g, '')) || 0;
-  const monthly = parseFloat(document.getElementById('inv-monthly').value.replace(/,/g, '')) || 0;
+  const contributionAmount = parseFloat(document.getElementById('inv-contribution').value.replace(/,/g, '')) || 0;
+  const isYearly = document.getElementById('inv-contribution-toggle').checked;
+  const monthly = isYearly ? contributionAmount / 12 : contributionAmount;
   const rate = parseFloat(document.getElementById('inv-rate').value) / 100;
   const years = parseFloat(document.getElementById('inv-years').value) || 0;
+  const startDate = new Date(document.getElementById('inv-start-date').value);
 
   // Save to localStorage
   localStorage.setItem('inv-data', JSON.stringify({
     initial: document.getElementById('inv-initial').value,
-    monthly: document.getElementById('inv-monthly').value,
+    contribution: document.getElementById('inv-contribution').value,
+    isYearly: isYearly,
     rate: document.getElementById('inv-rate').value,
-    years: years
+    years: years,
+    startDate: document.getElementById('inv-start-date').value
   }));
 
   let balance = initial;
@@ -115,6 +139,10 @@ function calculateInvestment() {
   document.getElementById('inv-principal').textContent = formatCurrency(totalPrincipal);
   document.getElementById('inv-interest').textContent = formatCurrency(totalInterest);
 
+  // Show results
+  document.querySelector('#investment .results').classList.add('visible');
+  document.querySelector('#investment .amortization').classList.add('visible');
+
   // Yearly amortization table
   const tbody = document.querySelector('#inv-table tbody');
   tbody.innerHTML = '';
@@ -123,7 +151,8 @@ function calculateInvestment() {
 
   for (let year = 1; year <= years; year++) {
     const startBalance = balance;
-    const startPrincipal = yearlyPrincipal;
+    const yearDate = new Date(startDate);
+    yearDate.setFullYear(startDate.getFullYear() + year);
     
     // Calculate for this year (12 months)
     for (let month = 1; month <= 12; month++) {
@@ -135,10 +164,11 @@ function calculateInvestment() {
     const yearInterest = balance - startBalance - yearContributions;
     
     const row = tbody.insertRow();
-    row.insertCell(0).textContent = year;
-    row.insertCell(1).textContent = formatCurrency(yearContributions);
-    row.insertCell(2).textContent = formatCurrency(yearInterest);
-    row.insertCell(3).textContent = formatCurrency(balance);
+    row.insertCell(0).textContent = yearDate.getFullYear();
+    row.insertCell(1).textContent = year;
+    row.insertCell(2).textContent = formatCurrency(yearContributions);
+    row.insertCell(3).textContent = formatCurrency(yearInterest);
+    row.insertCell(4).textContent = formatCurrency(balance);
   }
 }
 
@@ -186,15 +216,22 @@ function calculateRetirement() {
   document.getElementById('ret-contributions').textContent = formatCurrency(totalContributions);
   document.getElementById('ret-growth').textContent = formatCurrency(totalGrowth);
 
+  // Show results
+  document.querySelector('#retirement .results').classList.add('visible');
+  document.getElementById('ret-chart').classList.add('visible');
+  document.querySelector('#retirement .amortization').classList.add('visible');
+
   // Yearly amortization table
   const tbody = document.querySelector('#ret-table tbody');
   tbody.innerHTML = '';
   balance = currentSavings;
   let yearlyContributions = currentSavings;
+  const currentYear = new Date().getFullYear();
 
   for (let year = 1; year <= years; year++) {
     const startBalance = balance;
     const age = currentAge + year;
+    const displayYear = currentYear + year;
     
     // Calculate for this year (12 months)
     for (let month = 1; month <= 12; month++) {
@@ -206,11 +243,12 @@ function calculateRetirement() {
     const yearGrowth = balance - startBalance - yearContributions;
     
     const row = tbody.insertRow();
-    row.insertCell(0).textContent = year;
-    row.insertCell(1).textContent = age;
-    row.insertCell(2).textContent = formatCurrency(yearContributions);
-    row.insertCell(3).textContent = formatCurrency(yearGrowth);
-    row.insertCell(4).textContent = formatCurrency(balance);
+    row.insertCell(0).textContent = displayYear;
+    row.insertCell(1).textContent = year;
+    row.insertCell(2).textContent = age;
+    row.insertCell(3).textContent = formatCurrency(yearContributions);
+    row.insertCell(4).textContent = formatCurrency(yearGrowth);
+    row.insertCell(5).textContent = formatCurrency(balance);
   }
 
   // Destroy previous chart if exists
@@ -313,6 +351,7 @@ function calculateMortgage() {
   const term = parseFloat(document.getElementById('mort-term').value);
   const rate = parseFloat(document.getElementById('mort-rate').value) / 100 / 12;
   const payments = term * 12;
+  const startDate = new Date(document.getElementById('mort-start-date').value);
 
   // Save to localStorage
   localStorage.setItem('mort-data', JSON.stringify({
@@ -320,7 +359,8 @@ function calculateMortgage() {
     downPayment: document.getElementById('mort-down-payment').value,
     isPercent: isPercent,
     term: term,
-    rate: document.getElementById('mort-rate').value
+    rate: document.getElementById('mort-rate').value,
+    startDate: document.getElementById('mort-start-date').value
   }));
 
   const monthlyPayment = loanAmount * (rate * Math.pow(1 + rate, payments)) / (Math.pow(1 + rate, payments) - 1);
@@ -331,19 +371,29 @@ function calculateMortgage() {
   document.getElementById('mort-total').textContent = formatCurrency(totalPaid);
   document.getElementById('mort-interest').textContent = formatCurrency(totalInterest);
 
+  // Show results
+  document.querySelector('#mortgage .results').classList.add('visible');
+  document.querySelector('#mortgage .amortization').classList.add('visible');
+
   // Monthly amortization table
   const tbody = document.querySelector('#mort-table tbody');
   tbody.innerHTML = '';
   let balance = loanAmount;
+  
   for (let i = 1; i <= payments; i++) {
+    const paymentDate = new Date(startDate);
+    paymentDate.setMonth(startDate.getMonth() + i);
+    
     const interest = balance * rate;
     const principal = monthlyPayment - interest;
     balance -= principal;
+    
     const row = tbody.insertRow();
-    row.insertCell(0).textContent = i;
-    row.insertCell(1).textContent = formatCurrency(principal);
-    row.insertCell(2).textContent = formatCurrency(interest);
-    row.insertCell(3).textContent = formatCurrency(Math.max(balance, 0));
+    row.insertCell(0).textContent = `${paymentDate.getMonth() + 1}/${paymentDate.getFullYear()}`;
+    row.insertCell(1).textContent = i;
+    row.insertCell(2).textContent = formatCurrency(principal);
+    row.insertCell(3).textContent = formatCurrency(interest);
+    row.insertCell(4).textContent = formatCurrency(Math.max(balance, 0));
   }
 }
 
@@ -354,15 +404,19 @@ document.getElementById('mort-form').addEventListener('submit', e => {
 
 function calculateLoan() {
   const loanAmount = parseFloat(document.getElementById('loan-amount').value.replace(/,/g, ''));
-  const term = parseFloat(document.getElementById('loan-term').value);
+  const termValue = parseFloat(document.getElementById('loan-term').value);
+  const isYears = document.getElementById('loan-term-toggle').checked;
+  const payments = isYears ? termValue * 12 : termValue;
   const rate = parseFloat(document.getElementById('loan-rate').value) / 100 / 12;
-  const payments = term * 12;
+  const startDate = new Date(document.getElementById('loan-start-date').value);
 
   // Save to localStorage
   localStorage.setItem('loan-data', JSON.stringify({
     loanAmount: document.getElementById('loan-amount').value,
-    term: term,
-    rate: document.getElementById('loan-rate').value
+    term: termValue,
+    isYears: isYears,
+    rate: document.getElementById('loan-rate').value,
+    startDate: document.getElementById('loan-start-date').value
   }));
 
   const monthlyPayment = loanAmount * (rate * Math.pow(1 + rate, payments)) / (Math.pow(1 + rate, payments) - 1);
@@ -373,19 +427,29 @@ function calculateLoan() {
   document.getElementById('loan-total').textContent = formatCurrency(totalPaid);
   document.getElementById('loan-interest').textContent = formatCurrency(totalInterest);
 
+  // Show results
+  document.querySelector('#loan .results').classList.add('visible');
+  document.querySelector('#loan .amortization').classList.add('visible');
+
   // Monthly amortization table
   const tbody = document.querySelector('#loan-table tbody');
   tbody.innerHTML = '';
   let balance = loanAmount;
+  
   for (let i = 1; i <= payments; i++) {
+    const paymentDate = new Date(startDate);
+    paymentDate.setMonth(startDate.getMonth() + i);
+    
     const interest = balance * rate;
     const principal = monthlyPayment - interest;
     balance -= principal;
+    
     const row = tbody.insertRow();
-    row.insertCell(0).textContent = i;
-    row.insertCell(1).textContent = formatCurrency(principal);
-    row.insertCell(2).textContent = formatCurrency(interest);
-    row.insertCell(3).textContent = formatCurrency(Math.max(balance, 0));
+    row.insertCell(0).textContent = `${paymentDate.getMonth() + 1}/${paymentDate.getFullYear()}`;
+    row.insertCell(1).textContent = i;
+    row.insertCell(2).textContent = formatCurrency(principal);
+    row.insertCell(3).textContent = formatCurrency(interest);
+    row.insertCell(4).textContent = formatCurrency(Math.max(balance, 0));
   }
 }
 
@@ -402,9 +466,11 @@ function loadSavedData() {
     try {
       const data = JSON.parse(invData);
       if (data.initial) document.getElementById('inv-initial').value = data.initial;
-      if (data.monthly) document.getElementById('inv-monthly').value = data.monthly;
+      if (data.contribution) document.getElementById('inv-contribution').value = data.contribution;
+      if (data.isYearly !== undefined) document.getElementById('inv-contribution-toggle').checked = data.isYearly;
       if (data.rate) document.getElementById('inv-rate').value = data.rate;
       if (data.years) document.getElementById('inv-years').value = data.years;
+      if (data.startDate) document.getElementById('inv-start-date').value = data.startDate;
     } catch (e) {
       console.error('Error loading investment data:', e);
     }
@@ -447,6 +513,7 @@ function loadSavedData() {
       }
       if (data.term) document.getElementById('mort-term').value = data.term;
       if (data.rate) document.getElementById('mort-rate').value = data.rate;
+      if (data.startDate) document.getElementById('mort-start-date').value = data.startDate;
     } catch (e) {
       console.error('Error loading mortgage data:', e);
     }
@@ -459,7 +526,9 @@ function loadSavedData() {
       const data = JSON.parse(loanData);
       if (data.loanAmount) document.getElementById('loan-amount').value = data.loanAmount;
       if (data.term) document.getElementById('loan-term').value = data.term;
+      if (data.isYears !== undefined) document.getElementById('loan-term-toggle').checked = data.isYears;
       if (data.rate) document.getElementById('loan-rate').value = data.rate;
+      if (data.startDate) document.getElementById('loan-start-date').value = data.startDate;
     } catch (e) {
       console.error('Error loading loan data:', e);
     }
@@ -496,6 +565,74 @@ document.getElementById('reset-app').addEventListener('click', () => {
 
 // Load saved data on page load
 loadSavedData();
+
+// Download table screenshot function
+function downloadTableScreenshot(tableId, filename) {
+  const table = document.getElementById(tableId);
+  const tableWrapper = table.closest('.amortization');
+  
+  if (!table || table.rows.length <= 1) {
+    alert('No data to download. Please calculate first.');
+    return;
+  }
+
+  // Create a temporary container for better screenshot
+  const tempContainer = document.createElement('div');
+  tempContainer.style.cssText = `
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    background: #0a0e27;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  `;
+  
+  // Clone the table and heading
+  const heading = tableWrapper.querySelector('h3');
+  const headingClone = heading.cloneNode(true);
+  headingClone.style.cssText = `
+    color: #c4b5fd;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  `;
+  
+  const tableClone = table.cloneNode(true);
+  tableClone.style.cssText = `
+    width: 100%;
+    min-width: 600px;
+  `;
+  
+  tempContainer.appendChild(headingClone);
+  tempContainer.appendChild(tableClone);
+  document.body.appendChild(tempContainer);
+
+  // Capture screenshot
+  html2canvas(tempContainer, {
+    backgroundColor: '#0a0e27',
+    scale: 2,
+    logging: false,
+    windowWidth: tempContainer.scrollWidth,
+    windowHeight: tempContainer.scrollHeight
+  }).then(canvas => {
+    // Convert to blob and download
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `${filename}-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      // Cleanup
+      document.body.removeChild(tempContainer);
+    });
+  }).catch(err => {
+    console.error('Screenshot failed:', err);
+    document.body.removeChild(tempContainer);
+    alert('Failed to generate screenshot. Please try again.');
+  });
+}
 
 // PWA registration
 if ('serviceWorker' in navigator) {
