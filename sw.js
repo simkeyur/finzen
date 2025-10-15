@@ -1,14 +1,17 @@
-const CACHE_NAME = 'finzen-v2';
+const CACHE_NAME = 'finzen-v3';
 const urlsToCache = [
   '/finzen/',
   '/finzen/index.html',
   '/finzen/styles/styles.css',
   '/finzen/js/app.js',
+  '/finzen/js/pdf-generator.js',
   '/finzen/manifest.json',
   '/finzen/assets/192.png',
   '/finzen/assets/512.png',
+  '/finzen/assets/finzen-app.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
-  'https://cdn.jsdelivr.net/npm/apexcharts'
+  'https://cdn.jsdelivr.net/npm/apexcharts',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 
 self.addEventListener('install', event => {
