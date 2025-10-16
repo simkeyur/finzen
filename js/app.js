@@ -109,6 +109,7 @@ function calculateInvestment() {
   const isYearly = document.getElementById('inv-contribution-toggle').checked;
   const monthly = isYearly ? contributionAmount / 12 : contributionAmount;
   const rate = parseFloat(document.getElementById('inv-rate').value) / 100;
+  const inflationRate = parseFloat(document.getElementById('inv-inflation').value) / 100;
   const years = parseFloat(document.getElementById('inv-years').value) || 0;
   const startDate = new Date(document.getElementById('inv-start-date').value);
 
@@ -118,6 +119,7 @@ function calculateInvestment() {
     contribution: document.getElementById('inv-contribution').value,
     isYearly: isYearly,
     rate: document.getElementById('inv-rate').value,
+    inflation: document.getElementById('inv-inflation').value,
     years: years,
     startDate: document.getElementById('inv-start-date').value
   }));
@@ -134,8 +136,12 @@ function calculateInvestment() {
 
   const futureValue = balance;
   const totalInterest = futureValue - totalPrincipal;
+  
+  // Calculate inflation-adjusted value
+  const inflationAdjustedValue = futureValue / Math.pow(1 + inflationRate, years);
 
   document.getElementById('inv-future').textContent = formatCurrency(futureValue);
+  document.getElementById('inv-inflation-adjusted').textContent = formatCurrency(inflationAdjustedValue);
   document.getElementById('inv-principal').textContent = formatCurrency(totalPrincipal);
   document.getElementById('inv-interest').textContent = formatCurrency(totalInterest);
 
@@ -162,6 +168,7 @@ function calculateInvestment() {
     
     const yearContributions = monthly * 12;
     const yearInterest = balance - startBalance - yearContributions;
+    const inflationAdjustedBalance = balance / Math.pow(1 + inflationRate, year);
     
     const row = tbody.insertRow();
     row.insertCell(0).textContent = yearDate.getFullYear();
@@ -169,6 +176,7 @@ function calculateInvestment() {
     row.insertCell(2).textContent = formatCurrency(yearContributions);
     row.insertCell(3).textContent = formatCurrency(yearInterest);
     row.insertCell(4).textContent = formatCurrency(balance);
+    row.insertCell(5).textContent = formatCurrency(inflationAdjustedBalance);
   }
 }
 
@@ -187,7 +195,9 @@ function calculateRetirement() {
   const isYearly = document.getElementById('ret-contribution-toggle').checked;
   const monthly = isYearly ? contributionAmount / 12 : contributionAmount;
   const rate = parseFloat(document.getElementById('ret-rate').value) / 100;
+  const inflationRate = parseFloat(document.getElementById('ret-inflation').value) / 100;
   const monthlyRate = rate / 12;
+  const monthlyInflationRate = inflationRate / 12;
   const years = targetAge - currentAge;
   const months = years * 12;
 
@@ -198,7 +208,8 @@ function calculateRetirement() {
     currentSavings: document.getElementById('ret-current-savings').value,
     contribution: document.getElementById('ret-contribution').value,
     isYearly: isYearly,
-    rate: document.getElementById('ret-rate').value
+    rate: document.getElementById('ret-rate').value,
+    inflation: document.getElementById('ret-inflation').value
   }));
 
   let balance = currentSavings;
@@ -211,8 +222,12 @@ function calculateRetirement() {
   }
 
   const totalGrowth = balance - totalContributions;
+  
+  // Calculate inflation-adjusted value
+  const inflationAdjustedValue = balance / Math.pow(1 + inflationRate, years);
 
   document.getElementById('ret-savings').textContent = formatCurrency(balance);
+  document.getElementById('ret-inflation-adjusted').textContent = formatCurrency(inflationAdjustedValue);
   document.getElementById('ret-contributions').textContent = formatCurrency(totalContributions);
   document.getElementById('ret-growth').textContent = formatCurrency(totalGrowth);
 
@@ -241,6 +256,7 @@ function calculateRetirement() {
     
     const yearContributions = monthly * 12;
     const yearGrowth = balance - startBalance - yearContributions;
+    const inflationAdjustedBalance = balance / Math.pow(1 + inflationRate, year);
     
     const row = tbody.insertRow();
     row.insertCell(0).textContent = displayYear;
@@ -249,6 +265,7 @@ function calculateRetirement() {
     row.insertCell(3).textContent = formatCurrency(yearContributions);
     row.insertCell(4).textContent = formatCurrency(yearGrowth);
     row.insertCell(5).textContent = formatCurrency(balance);
+    row.insertCell(6).textContent = formatCurrency(inflationAdjustedBalance);
   }
 
   // Destroy previous chart if exists
@@ -469,6 +486,7 @@ function loadSavedData() {
       if (data.contribution) document.getElementById('inv-contribution').value = data.contribution;
       if (data.isYearly !== undefined) document.getElementById('inv-contribution-toggle').checked = data.isYearly;
       if (data.rate) document.getElementById('inv-rate').value = data.rate;
+      if (data.inflation) document.getElementById('inv-inflation').value = data.inflation;
       if (data.years) document.getElementById('inv-years').value = data.years;
       if (data.startDate) document.getElementById('inv-start-date').value = data.startDate;
     } catch (e) {
@@ -487,6 +505,7 @@ function loadSavedData() {
       if (data.contribution) document.getElementById('ret-contribution').value = data.contribution;
       if (data.isYearly !== undefined) document.getElementById('ret-contribution-toggle').checked = data.isYearly;
       if (data.rate) document.getElementById('ret-rate').value = data.rate;
+      if (data.inflation) document.getElementById('ret-inflation').value = data.inflation;
     } catch (e) {
       console.error('Error loading retirement data:', e);
     }
@@ -571,4 +590,145 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
     .then(reg => console.log('SW registered'))
     .catch(err => console.log('SW registration failed'));
+}
+
+// Biometric Authentication Setup
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check biometric support and show modal if needed
+  const biometricSupported = await biometricAuth.checkSupport();
+
+  if (biometricSupported) {
+    // Check if user was recently authenticated
+    const wasAuthenticated = biometricAuth.loadAuthState();
+
+    if (!wasAuthenticated) {
+      showBiometricModal();
+    } else {
+      // User was recently authenticated, proceed normally
+      initializeApp();
+    }
+  } else {
+    // Biometrics not supported, proceed normally
+    initializeApp();
+  }
+});
+
+function showBiometricModal() {
+  const modal = document.getElementById('biometric-modal');
+  const authBtn = document.getElementById('biometric-auth-btn');
+  const authText = document.getElementById('auth-text');
+  const skipBtn = document.getElementById('biometric-skip');
+  const infoText = document.getElementById('biometric-info');
+
+  // Update UI based on device type
+  const authType = biometricAuth.getAuthTypeDisplay();
+  authText.textContent = `Authenticate with ${authType}`;
+  infoText.textContent = `Use your ${authType.toLowerCase()} to unlock FinZen`;
+
+  modal.classList.add('show');
+
+  // Handle authentication
+  authBtn.addEventListener('click', async () => {
+    try {
+      authBtn.classList.add('authenticating');
+      authText.textContent = 'Authenticating...';
+
+      const success = await biometricAuth.authenticate();
+
+      if (success) {
+        modal.classList.remove('show');
+        initializeApp();
+      }
+    } catch (error) {
+      authBtn.classList.remove('authenticating');
+      authText.textContent = `Authenticate with ${authType}`;
+
+      // Show error message
+      infoText.textContent = error.message;
+      infoText.style.color = '#ef4444';
+
+      // Reset after 3 seconds
+      setTimeout(() => {
+        infoText.textContent = `Use your ${authType.toLowerCase()} to unlock FinZen`;
+        infoText.style.color = 'rgba(224, 230, 237, 0.6)';
+      }, 3000);
+    }
+  });
+
+  // Handle skip
+  skipBtn.addEventListener('click', () => {
+    modal.classList.remove('show');
+    initializeApp();
+  });
+}
+
+function initializeApp() {
+  // Load saved data and initialize the app
+  loadSavedData();
+
+  // Add biometric toggle to settings
+  addBiometricSettings();
+}
+
+function addBiometricSettings() {
+  const settingsBody = document.querySelector('.settings-body');
+
+  // Create biometric settings section
+  const biometricSection = document.createElement('div');
+  biometricSection.className = 'biometric-settings';
+  biometricSection.innerHTML = `
+    <h3 style="color: #00acc1; margin-bottom: 1rem;">Security</h3>
+    <div class="setting-item">
+      <div class="setting-info">
+        <span class="setting-label">Biometric Authentication</span>
+        <span class="setting-description">Require fingerprint or face recognition to access the app</span>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="biometric-enabled">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <button class="biometric-test-btn" id="biometric-test-btn" style="display: none;">Test Biometric Auth</button>
+  `;
+
+  settingsBody.insertBefore(biometricSection, settingsBody.firstChild);
+
+  // Handle biometric toggle
+  const biometricToggle = document.getElementById('biometric-enabled');
+  const testBtn = document.getElementById('biometric-test-btn');
+
+  // Load current setting
+  const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
+  biometricToggle.checked = biometricEnabled;
+
+  if (biometricEnabled) {
+    testBtn.style.display = 'block';
+  }
+
+  biometricToggle.addEventListener('change', () => {
+    const enabled = biometricToggle.checked;
+    localStorage.setItem('biometric_enabled', enabled);
+
+    if (enabled) {
+      testBtn.style.display = 'block';
+      // Clear any existing auth state when enabling
+      biometricAuth.logout();
+    } else {
+      testBtn.style.display = 'none';
+      // Clear auth state when disabling
+      biometricAuth.logout();
+    }
+  });
+
+  // Handle test button
+  testBtn.addEventListener('click', async () => {
+    try {
+      const success = await biometricAuth.authenticate();
+      if (success) {
+        alert('Biometric authentication successful!');
+      }
+    } catch (error) {
+      alert('Authentication failed: ' + error.message);
+    }
+  });
 }

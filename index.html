@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="description" content="AI-powered financial calculator for retirement, mortgage, loan, and investment planning">
   <meta name="theme-color" content="#0f1428">
   <title>FinZen - AI Financial Calculator</title>
@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/biometric-auth.js"></script>
   <script src="js/pdf-generator.js"></script>
   <link rel="stylesheet" href="styles/styles.css">
 </head>
@@ -39,6 +40,27 @@
     </div>
   </div>
   
+  <!-- Biometric Authentication Modal -->
+  <div class="biometric-modal" id="biometric-modal">
+    <div class="biometric-content">
+      <div class="biometric-header">
+        <div class="biometric-icon">🔐</div>
+        <h2>Secure Access</h2>
+        <p>Authenticate to access your financial data</p>
+      </div>
+      <div class="biometric-body">
+        <button class="biometric-btn" id="biometric-auth-btn">
+          <span class="biometric-icon-small">👆</span>
+          <span id="auth-text">Authenticate with Biometrics</span>
+        </button>
+        <p class="biometric-info" id="biometric-info">Use your fingerprint or face to unlock FinZen</p>
+      </div>
+      <div class="biometric-footer">
+        <button class="biometric-skip" id="biometric-skip">Skip for now</button>
+      </div>
+    </div>
+  </div>
+  
   <main>
     <section id="retirement" class="calculator active">
       <h2>Retirement Calculator</h2>
@@ -51,6 +73,7 @@
           </div>
         </label>
         <label>Annual Rate of Return (%): <input type="number" step="0.01" class="input-yellow" id="ret-rate" placeholder="0.00" required></label>
+        <label>Expected Inflation Rate (%): <input type="number" step="0.01" class="input-purple" id="ret-inflation" placeholder="3.00" value="3.00" required></label>
         <label class="full-width">
           <span style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <span>Contribution Amount:</span>
@@ -71,6 +94,7 @@
       </form>
       <div class="results">
         <p>Estimated Savings at Retirement: <span class="number-blue" id="ret-savings">$0</span></p>
+        <p>Inflation-Adjusted Value: <span class="number-cyan" id="ret-inflation-adjusted">$0</span></p>
         <p>Total Contributions: <span class="number-green" id="ret-contributions">$0</span></p>
         <p>Total Growth: <span class="number-magenta" id="ret-growth">$0</span></p>
       </div>
@@ -98,6 +122,7 @@
               <th>Contributions</th>
               <th>Growth</th>
               <th>Balance</th>
+              <th>Inflation-Adjusted Balance</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -175,6 +200,7 @@
           </div>
         </label>
         <label>Annual Interest Rate (%): <input type="number" step="0.01" class="input-magenta" id="inv-rate" placeholder="0.00" required></label>
+        <label>Expected Inflation Rate (%): <input type="number" step="0.01" class="input-purple" id="inv-inflation" placeholder="3.00" value="3.00" required></label>
         <label>Investment Period (Years): <input type="number" class="input-cyan" id="inv-years" placeholder="0" required></label>
         <label>Start Date: <input type="date" class="input-yellow" id="inv-start-date" required></label>
         <label class="full-width">
@@ -197,6 +223,7 @@
       </form>
       <div class="results">
         <p>Future Value: <span class="number-blue" id="inv-future">$0</span></p>
+        <p>Inflation-Adjusted Value: <span class="number-cyan" id="inv-inflation-adjusted">$0</span></p>
         <p>Total Principal Contributed: <span class="number-green" id="inv-principal">$0</span></p>
         <p>Total Interest Earned: <span class="number-magenta" id="inv-interest">$0</span></p>
       </div>
@@ -220,6 +247,7 @@
               <th>Contributions</th>
               <th>Interest</th>
               <th>Balance</th>
+              <th>Inflation-Adjusted Balance</th>
             </tr>
           </thead>
           <tbody></tbody>

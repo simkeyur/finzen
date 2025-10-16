@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finzen-v3';
+const CACHE_NAME = 'finzen-v4';
 const urlsToCache = [
   '/finzen/',
   '/finzen/index.html',
