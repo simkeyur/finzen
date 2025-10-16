@@ -12,17 +12,30 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="js/biometric-auth.js"></script>
   <script src="js/pdf-generator.js"></script>
   <link rel="stylesheet" href="styles/styles.css">
 </head>
 <body>
   <header>FinZen</header>
-  <nav>
-    <button class="tab active" data-tab="retirement">Retirement</button>
-    <button class="tab" data-tab="mortgage">Mortgage</button>
-    <button class="tab" data-tab="loan">Loan</button>
-    <button class="tab" data-tab="investment">Investment</button>
+  <nav id="main-nav">
+    <!-- Dropdown Navigation -->
+    <div class="mobile-nav">
+      <div class="dropdown-container">
+        <button class="dropdown-btn" id="projection-btn">📈 Projection</button>
+        <div class="dropdown-menu" id="projection-menu">
+          <button class="tab dropdown-item" data-tab="retirement">Retirement</button>
+          <button class="tab dropdown-item" data-tab="investment">Investment</button>
+        </div>
+      </div>
+      <div class="dropdown-container">
+        <button class="dropdown-btn" id="home-auto-btn">🏠 Home & Auto</button>
+        <div class="dropdown-menu" id="home-auto-menu">
+          <button class="tab dropdown-item" data-tab="mortgage">Mortgage</button>
+          <button class="tab dropdown-item" data-tab="loan">Auto Loan</button>
+        </div>
+      </div>
+    </div>
+
     <button class="settings-icon" id="settings-btn" aria-label="Settings">⚙️</button>
   </nav>
   
@@ -36,27 +49,6 @@
       <div class="settings-body">
         <button class="reset-button" id="reset-app">Reset App</button>
         <p class="settings-info">This will clear all saved data and reload the app.</p>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Biometric Authentication Modal -->
-  <div class="biometric-modal" id="biometric-modal">
-    <div class="biometric-content">
-      <div class="biometric-header">
-        <div class="biometric-icon">🔐</div>
-        <h2>Secure Access</h2>
-        <p>Authenticate to access your financial data</p>
-      </div>
-      <div class="biometric-body">
-        <button class="biometric-btn" id="biometric-auth-btn">
-          <span class="biometric-icon-small">👆</span>
-          <span id="auth-text">Authenticate with Biometrics</span>
-        </button>
-        <p class="biometric-info" id="biometric-info">Use your fingerprint or face to unlock FinZen</p>
-      </div>
-      <div class="biometric-footer">
-        <button class="biometric-skip" id="biometric-skip">Skip for now</button>
       </div>
     </div>
   </div>

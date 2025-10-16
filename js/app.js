@@ -14,8 +14,76 @@ tabs.forEach(tab => {
     calculators.forEach(c => c.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById(tab.dataset.tab).classList.add('active');
+    
+    // Close mobile dropdowns when a tab is clicked
+    closeAllDropdowns();
   });
 });
+
+// Mobile dropdown functionality
+function setupMobileDropdowns() {
+  const projectionBtn = document.getElementById('projection-btn');
+  const homeAutoBtn = document.getElementById('home-auto-btn');
+  const projectionMenu = document.getElementById('projection-menu');
+  const homeAutoMenu = document.getElementById('home-auto-menu');
+
+  console.log('Setting up dropdowns:', { projectionBtn, homeAutoBtn, projectionMenu, homeAutoMenu });
+
+  if (projectionBtn && homeAutoBtn && projectionMenu && homeAutoMenu) {
+    projectionBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Projection button clicked');
+      toggleDropdown(projectionMenu, projectionBtn);
+      closeDropdown(homeAutoMenu, homeAutoBtn);
+    });
+
+    homeAutoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Home & Auto button clicked');
+      toggleDropdown(homeAutoMenu, homeAutoBtn);
+      closeDropdown(projectionMenu, projectionBtn);
+    });
+  }
+}
+
+function toggleDropdown(menu, btn) {
+  menu.classList.toggle('show');
+  btn.classList.toggle('active');
+}
+
+function closeDropdown(menu, btn) {
+  menu.classList.remove('show');
+  btn.classList.remove('active');
+}
+
+function closeAllDropdowns() {
+  const menus = document.querySelectorAll('.dropdown-menu');
+  const btns = document.querySelectorAll('.dropdown-btn');
+  menus.forEach(menu => menu.classList.remove('show'));
+  btns.forEach(btn => btn.classList.remove('active'));
+}
+
+// Initialize mobile dropdowns when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setupMobileDropdowns();
+    setupClickOutsideHandler();
+  });
+} else {
+  setupMobileDropdowns();
+  setupClickOutsideHandler();
+}
+
+function setupClickOutsideHandler() {
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-container') && !e.target.closest('.dropdown-btn')) {
+      closeAllDropdowns();
+    }
+  });
+}
 
 // Currency input formatting
 function formatCurrencyInput(event) {
@@ -592,143 +660,7 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.log('SW registration failed'));
 }
 
-// Biometric Authentication Setup
-document.addEventListener('DOMContentLoaded', async () => {
-  // Check biometric support and show modal if needed
-  const biometricSupported = await biometricAuth.checkSupport();
-
-  if (biometricSupported) {
-    // Check if user was recently authenticated
-    const wasAuthenticated = biometricAuth.loadAuthState();
-
-    if (!wasAuthenticated) {
-      showBiometricModal();
-    } else {
-      // User was recently authenticated, proceed normally
-      initializeApp();
-    }
-  } else {
-    // Biometrics not supported, proceed normally
-    initializeApp();
-  }
-});
-
-function showBiometricModal() {
-  const modal = document.getElementById('biometric-modal');
-  const authBtn = document.getElementById('biometric-auth-btn');
-  const authText = document.getElementById('auth-text');
-  const skipBtn = document.getElementById('biometric-skip');
-  const infoText = document.getElementById('biometric-info');
-
-  // Update UI based on device type
-  const authType = biometricAuth.getAuthTypeDisplay();
-  authText.textContent = `Authenticate with ${authType}`;
-  infoText.textContent = `Use your ${authType.toLowerCase()} to unlock FinZen`;
-
-  modal.classList.add('show');
-
-  // Handle authentication
-  authBtn.addEventListener('click', async () => {
-    try {
-      authBtn.classList.add('authenticating');
-      authText.textContent = 'Authenticating...';
-
-      const success = await biometricAuth.authenticate();
-
-      if (success) {
-        modal.classList.remove('show');
-        initializeApp();
-      }
-    } catch (error) {
-      authBtn.classList.remove('authenticating');
-      authText.textContent = `Authenticate with ${authType}`;
-
-      // Show error message
-      infoText.textContent = error.message;
-      infoText.style.color = '#ef4444';
-
-      // Reset after 3 seconds
-      setTimeout(() => {
-        infoText.textContent = `Use your ${authType.toLowerCase()} to unlock FinZen`;
-        infoText.style.color = 'rgba(224, 230, 237, 0.6)';
-      }, 3000);
-    }
-  });
-
-  // Handle skip
-  skipBtn.addEventListener('click', () => {
-    modal.classList.remove('show');
-    initializeApp();
-  });
-}
-
-function initializeApp() {
-  // Load saved data and initialize the app
+// Initialize app on load
+document.addEventListener('DOMContentLoaded', () => {
   loadSavedData();
-
-  // Add biometric toggle to settings
-  addBiometricSettings();
-}
-
-function addBiometricSettings() {
-  const settingsBody = document.querySelector('.settings-body');
-
-  // Create biometric settings section
-  const biometricSection = document.createElement('div');
-  biometricSection.className = 'biometric-settings';
-  biometricSection.innerHTML = `
-    <h3 style="color: #00acc1; margin-bottom: 1rem;">Security</h3>
-    <div class="setting-item">
-      <div class="setting-info">
-        <span class="setting-label">Biometric Authentication</span>
-        <span class="setting-description">Require fingerprint or face recognition to access the app</span>
-      </div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="biometric-enabled">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-    <button class="biometric-test-btn" id="biometric-test-btn" style="display: none;">Test Biometric Auth</button>
-  `;
-
-  settingsBody.insertBefore(biometricSection, settingsBody.firstChild);
-
-  // Handle biometric toggle
-  const biometricToggle = document.getElementById('biometric-enabled');
-  const testBtn = document.getElementById('biometric-test-btn');
-
-  // Load current setting
-  const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
-  biometricToggle.checked = biometricEnabled;
-
-  if (biometricEnabled) {
-    testBtn.style.display = 'block';
-  }
-
-  biometricToggle.addEventListener('change', () => {
-    const enabled = biometricToggle.checked;
-    localStorage.setItem('biometric_enabled', enabled);
-
-    if (enabled) {
-      testBtn.style.display = 'block';
-      // Clear any existing auth state when enabling
-      biometricAuth.logout();
-    } else {
-      testBtn.style.display = 'none';
-      // Clear auth state when disabling
-      biometricAuth.logout();
-    }
-  });
-
-  // Handle test button
-  testBtn.addEventListener('click', async () => {
-    try {
-      const success = await biometricAuth.authenticate();
-      if (success) {
-        alert('Biometric authentication successful!');
-      }
-    } catch (error) {
-      alert('Authentication failed: ' + error.message);
-    }
-  });
-}
+});
