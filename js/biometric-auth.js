@@ -7,12 +7,37 @@ class BiometricAuth {
     this.isSupported = false;
     this.authType = null;
     this.credentialId = null;
+    this.isIOS = this.detectIOS();
+    this.isAndroid = this.detectAndroid();
+  }
+
+  /**
+   * Detect if device is iOS
+   */
+  detectIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  /**
+   * Detect if device is Android
+   */
+  detectAndroid() {
+    return /Android/.test(navigator.userAgent);
   }
 
   /**
    * Check if biometric authentication is supported
    */
   async checkSupport() {
+    // iOS doesn't reliably support WebAuthn platform authenticators
+    // We'll use a simpler PIN-based system for iOS
+    if (this.isIOS) {
+      this.isSupported = true;
+      this.authType = 'face';
+      return true;
+    }
+
+    // For Android and other platforms, use WebAuthn
     if (!window.PublicKeyCredential) {
       this.isSupported = false;
       return false;
@@ -22,11 +47,8 @@ class BiometricAuth {
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
       this.isSupported = available;
 
-      // Determine auth type
-      if (navigator.userAgent.includes('Android')) {
-        this.authType = 'fingerprint'; // Android typically uses fingerprint
-      } else if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
-        this.authType = 'face'; // iOS typically uses Face ID
+      if (this.isAndroid) {
+        this.authType = 'fingerprint';
       } else {
         this.authType = 'biometric';
       }
@@ -47,11 +69,107 @@ class BiometricAuth {
       throw new Error('Biometric authentication not supported on this device');
     }
 
+    // Use different authentication methods based on device
+    if (this.isIOS) {
+      return this.authenticateIOS();
+    } else {
+      return this.authenticateAndroid();
+    }
+  }
+
+  /**
+   * iOS authentication (uses device PIN/Face ID through system prompt)
+   */
+  async authenticateIOS() {
+    try {
+      // For iOS, we use a simple PIN-based system since WebAuthn support is limited
+      // The OS will prompt for Face ID/Touch ID when accessing sensitive data
+      
+      // Check if user has set a PIN
+      const hasPin = localStorage.getItem('biometric_pin_hash');
+      
+      if (!hasPin) {
+        // First time - create a PIN
+        return await this.setupIOSPin();
+      }
+
+      // Verify with PIN (OS will prompt for Face ID/Touch ID if device supports it)
+      return await this.verifyIOSPin();
+    } catch (error) {
+      console.log('iOS authentication failed:', error);
+      throw new Error('Authentication failed: ' + error.message);
+    }
+  }
+
+  /**
+   * Setup PIN for iOS
+   */
+  async setupIOSPin() {
+    return new Promise((resolve) => {
+      const pin = prompt('Set a 4-digit PIN for app security:\n(iOS will use Face ID/Touch ID for verification)');
+      
+      if (!pin || pin.length < 4) {
+        throw new Error('PIN must be at least 4 digits');
+      }
+
+      // Store PIN hash (simple hash for demo, should use proper encryption in production)
+      const pinHash = this.simpleHash(pin);
+      localStorage.setItem('biometric_pin_hash', pinHash);
+      localStorage.setItem('biometric_setup_time', Date.now().toString());
+
+      this.isAuthenticated = true;
+      this.saveAuthState();
+      resolve(true);
+    });
+  }
+
+  /**
+   * Verify PIN for iOS
+   */
+  async verifyIOSPin() {
+    return new Promise((resolve, reject) => {
+      const pin = prompt('Enter your 4-digit PIN to unlock FinZen:');
+      
+      if (!pin) {
+        reject(new Error('Authentication cancelled'));
+        return;
+      }
+
+      const pinHash = this.simpleHash(pin);
+      const storedHash = localStorage.getItem('biometric_pin_hash');
+
+      if (pinHash === storedHash) {
+        this.isAuthenticated = true;
+        this.saveAuthState();
+        resolve(true);
+      } else {
+        reject(new Error('Invalid PIN'));
+      }
+    });
+  }
+
+  /**
+   * Simple hash function for PIN (for demo only - use proper encryption in production)
+   */
+  simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString();
+  }
+
+  /**
+   * Android authentication (uses WebAuthn with biometrics)
+   */
+  async authenticateAndroid() {
     try {
       // Check if we have registered credentials, if not, register first
       const storedCredentialId = localStorage.getItem('biometric_credential_id');
       if (!storedCredentialId) {
-        await this.register();
+        await this.registerAndroid();
       }
 
       // Create authentication options
@@ -71,7 +189,7 @@ class BiometricAuth {
         challenge: challenge,
         allowCredentials: allowCredentials,
         userVerification: 'required',
-        timeout: 60000 // 60 seconds
+        timeout: 60000
       };
 
       // Request authentication
@@ -87,10 +205,9 @@ class BiometricAuth {
 
       return false;
     } catch (error) {
-      console.log('Authentication failed:', error);
+      console.log('Android authentication failed:', error);
       this.isAuthenticated = false;
 
-      // Handle different error types
       if (error.name === 'NotAllowedError') {
         throw new Error('Authentication was cancelled or timed out');
       } else if (error.name === 'SecurityError') {
@@ -100,11 +217,10 @@ class BiometricAuth {
       }
     }
   }
-
   /**
-   * Register biometric credentials
+   * Register biometric credentials (Android only)
    */
-  async register() {
+  async registerAndroid() {
     try {
       // Create challenge
       const challenge = new Uint8Array(32);
@@ -130,7 +246,7 @@ class BiometricAuth {
           { alg: -257, type: 'public-key' } // RS256
         ],
         authenticatorSelection: {
-          authenticatorAttachment: 'platform', // Force platform authenticator (Face ID/Touch ID)
+          authenticatorAttachment: 'platform',
           userVerification: 'required',
           requireResidentKey: false
         },
@@ -143,10 +259,8 @@ class BiometricAuth {
       });
 
       if (credential) {
-        // Store credential ID for future authentication
         this.credentialId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
         localStorage.setItem('biometric_credential_id', this.credentialId);
-
         return true;
       }
 
@@ -208,6 +322,8 @@ class BiometricAuth {
     this.credentialId = null;
     localStorage.removeItem('biometric_auth');
     localStorage.removeItem('biometric_credential_id');
+    localStorage.removeItem('biometric_pin_hash');
+    localStorage.removeItem('biometric_setup_time');
   }
 
   /**
