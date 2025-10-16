@@ -1,0 +1,429 @@
+// Taxes & Income Calculator Module
+// Handles manual tax calculation, W2 import, and paycheck calculations
+
+let taxData = null;
+
+// Load tax data from JSON file
+async function loadTaxBracketsData() {
+  if (taxData) return taxData;
+  
+  try {
+    const response = await fetch('assets/tax-brackets.json');
+    taxData = await response.json();
+    return taxData;
+  } catch (error) {
+    console.error('Failed to load tax brackets:', error);
+    return null;
+  }
+}
+
+// Calculate federal tax based on income and filing status
+function calculateFederalTax(income, filingStatus) {
+  if (!taxData || !taxData.federal_tax_brackets[filingStatus]) {
+    return 0;
+  }
+
+  const brackets = taxData.federal_tax_brackets[filingStatus];
+  const standardDeduction = taxData.standard_deductions[filingStatus];
+  const taxableIncome = Math.max(0, income - standardDeduction);
+
+  let tax = 0;
+  for (const bracket of brackets) {
+    if (taxableIncome > bracket.min) {
+      const taxableInBracket = bracket.max 
+        ? Math.min(taxableIncome, bracket.max) - bracket.min 
+        : taxableIncome - bracket.min;
+      tax += taxableInBracket * bracket.rate;
+    }
+  }
+
+  return tax;
+}
+
+// Calculate state tax based on income and state
+function calculateStateTax(income, state) {
+  if (!taxData || !taxData.state_tax_data[state]) {
+    return 0;
+  }
+
+  const stateData = taxData.state_tax_data[state];
+
+  if (stateData.type === 'none') {
+    return 0;
+  }
+
+  if (stateData.type === 'flat') {
+    return income * stateData.rate;
+  }
+
+  if (stateData.type === 'progressive') {
+    let tax = 0;
+    for (const bracket of stateData.brackets) {
+      if (income > bracket.min) {
+        const taxableInBracket = bracket.max 
+          ? Math.min(income, bracket.max) - bracket.min 
+          : income - bracket.min;
+        tax += taxableInBracket * bracket.rate;
+      }
+    }
+    return tax;
+  }
+
+  return 0;
+}
+
+// Calculate FICA taxes (Social Security and Medicare)
+function calculateFICATax(income) {
+  if (!taxData || !taxData.fica_rates) {
+    return { socialSecurity: 0, medicare: 0, additionalMedicare: 0, total: 0 };
+  }
+
+  const rates = taxData.fica_rates;
+  const ssWageBase = rates.socialSecurityWageBase;
+
+  const socialSecurityTax = Math.min(income, ssWageBase) * rates.socialSecurity;
+  const medicareTax = income * rates.medicare;
+  const additionalMedicareTax = income > 200000 ? (income - 200000) * rates.additionalMedicare : 0;
+  const totalFICA = socialSecurityTax + medicareTax + additionalMedicareTax;
+
+  return {
+    socialSecurity: socialSecurityTax,
+    medicare: medicareTax,
+    additionalMedicare: additionalMedicareTax,
+    total: totalFICA
+  };
+}
+
+// Parse W2 form data (simulated - in real app would parse actual W2)
+function parseW2Form(w2Data) {
+  return {
+    grossIncome: parseFloat(w2Data.w2Gross) || 0,
+    federalTax: parseFloat(w2Data.w2Federal) || 0,
+    socialSecurity: parseFloat(w2Data.w2SS) || 0,
+    medicare: parseFloat(w2Data.w2Medicare) || 0,
+    state: w2Data.w2State || 'CA',
+    stateTax: parseFloat(w2Data.w2StateTax) || 0
+  };
+}
+
+// Setup 2-person flow toggle
+function setupPeopleToggle() {
+  const peopleBtns = document.querySelectorAll('.people-btn');
+  const person2Label = document.getElementById('person-2-income-label');
+
+  peopleBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      peopleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const numPeople = btn.dataset.people;
+      if (numPeople === '2') {
+        person2Label.style.display = 'block';
+      } else {
+        person2Label.style.display = 'none';
+        document.getElementById('tax-income-2').value = '';
+      }
+    });
+  });
+}
+
+// Calculate manual taxes for 1 or 2 people
+function calculateManualTaxes(event) {
+  event.preventDefault();
+
+  if (!taxData) {
+    alert('Tax data not loaded. Please try again.');
+    return;
+  }
+
+  // Get number of people
+  const activePeopleBtn = document.querySelector('.people-btn.active');
+  const numPeople = parseInt(activePeopleBtn.dataset.people) || 1;
+
+  // Get income for both people
+  const income1 = parseFloat(document.getElementById('tax-income-1').value) || 0;
+  const income2 = numPeople === 2 ? (parseFloat(document.getElementById('tax-income-2').value) || 0) : 0;
+  const totalIncome = income1 + income2;
+
+  const filingStatus = document.getElementById('tax-status').value || 'single';
+  const state = document.getElementById('tax-state').value || 'CA';
+  const deductions = parseFloat(document.getElementById('tax-deductions').value) || 0;
+  const dependents = parseInt(document.getElementById('tax-dependents').value) || 0;
+
+  // Calculate adjusted gross income
+  const agi = Math.max(0, totalIncome - deductions);
+
+  // Calculate federal tax
+  const federalTax = calculateFederalTax(agi, filingStatus);
+
+  // Calculate child tax credit
+  const childTaxCredit = dependents * taxData.child_tax_credit;
+  const federalTaxAfterCredit = Math.max(0, federalTax - childTaxCredit);
+
+  // Calculate FICA taxes
+  const ficaTax = calculateFICATax(totalIncome);
+
+  // Calculate state tax
+  const stateTax = calculateStateTax(agi, state);
+
+  // Total tax
+  const totalTax = federalTaxAfterCredit + ficaTax.total + stateTax;
+  const effectiveRate = totalIncome > 0 ? ((totalTax / totalIncome) * 100).toFixed(2) : 0;
+
+  // Display results
+  document.getElementById('tax-gross-income').textContent = formatCurrency(totalIncome);
+  document.getElementById('tax-agi').textContent = formatCurrency(agi);
+  document.getElementById('tax-federal').textContent = formatCurrency(federalTaxAfterCredit);
+  document.getElementById('tax-fica').textContent = formatCurrency(ficaTax.total);
+  document.getElementById('tax-state-result').textContent = formatCurrency(stateTax);
+  document.getElementById('tax-total').textContent = formatCurrency(totalTax);
+  document.getElementById('tax-effective-rate').textContent = effectiveRate + '%';
+
+  // Show breakdown details
+  document.getElementById('tax-ss').textContent = formatCurrency(ficaTax.socialSecurity);
+  document.getElementById('tax-medicare').textContent = formatCurrency(ficaTax.medicare);
+  document.getElementById('tax-fed-after-credit').textContent = formatCurrency(federalTaxAfterCredit);
+  document.getElementById('tax-credit-used').textContent = formatCurrency(childTaxCredit);
+
+  // Save to localStorage
+  localStorage.setItem('taxData', JSON.stringify({
+    numPeople, income1, income2, filingStatus, state, deductions, dependents,
+    federalTax: federalTaxAfterCredit, ficaTax: ficaTax.total, stateTax
+  }));
+}
+
+// Calculate W2 taxes for dual imports
+function calculateW2Taxes(event) {
+  event.preventDefault();
+
+  if (!taxData) {
+    alert('Tax data not loaded. Please try again.');
+    return;
+  }
+
+  // Person 1 W2 data
+  const w2Data1 = {
+    w2Gross: document.getElementById('w2-gross-1').value,
+    w2Federal: document.getElementById('w2-federal-1').value,
+    w2SS: document.getElementById('w2-ss-1').value,
+    w2Medicare: document.getElementById('w2-medicare-1').value
+  };
+
+  // Person 2 W2 data (optional)
+  const w2Data2 = {
+    w2Gross: document.getElementById('w2-gross-2').value || '0',
+    w2Federal: document.getElementById('w2-federal-2').value || '0',
+    w2SS: document.getElementById('w2-ss-2').value || '0',
+    w2Medicare: document.getElementById('w2-medicare-2').value || '0'
+  };
+
+  const parsed1 = parseW2Form(w2Data1);
+  const parsed2 = parseW2Form(w2Data2);
+
+  // Combine both W2s
+  const combinedGross = parsed1.grossIncome + parsed2.grossIncome;
+  const combinedFederal = parsed1.federalTax + parsed2.federalTax;
+  const combinedSS = parsed1.socialSecurity + parsed2.socialSecurity;
+  const combinedMedicare = parsed1.medicare + parsed2.medicare;
+
+  // Get state tax withheld
+  const stateTax = parseFloat(document.getElementById('w2-state-tax').value) || 0;
+
+  const netIncome = combinedGross - combinedFederal - combinedSS - combinedMedicare - stateTax;
+  const totalTax = combinedFederal + combinedSS + combinedMedicare + stateTax;
+  const effectiveRate = combinedGross > 0 ? ((totalTax / combinedGross) * 100).toFixed(2) : 0;
+
+  // Display results
+  document.getElementById('w2-result-gross').textContent = formatCurrency(combinedGross);
+  document.getElementById('w2-result-federal').textContent = formatCurrency(combinedFederal);
+  document.getElementById('w2-result-fica').textContent = formatCurrency(combinedSS + combinedMedicare);
+  document.getElementById('w2-result-state').textContent = formatCurrency(stateTax);
+  document.getElementById('w2-result-total-tax').textContent = formatCurrency(totalTax);
+  document.getElementById('w2-result-net').textContent = formatCurrency(netIncome);
+  document.getElementById('w2-result-rate').textContent = effectiveRate + '%';
+
+  // Save to localStorage
+  localStorage.setItem('w2Data', JSON.stringify({
+    person1: parsed1,
+    person2: parsed2,
+    stateTax: stateTax,
+    combined: { combinedGross, combinedFederal, combinedSS, combinedMedicare, stateTax }
+  }));
+}
+
+// Calculate paycheck with deductions
+function calculatePaycheck(event) {
+  event.preventDefault();
+
+  if (!taxData) {
+    alert('Tax data not loaded. Please try again.');
+    return;
+  }
+
+  const annualSalary = parseFloat(document.getElementById('pc-annual-salary').value) || 0;
+  const payFrequency = document.getElementById('pc-pay-frequency').value || 'biweekly';
+  const filingStatus = document.getElementById('pc-filing-status').value || 'single';
+  const state = document.getElementById('pc-state').value || 'CA';
+  const contribution401k = parseFloat(document.getElementById('pc-401k').value) || 0;
+  const hsaDeduction = parseFloat(document.getElementById('pc-hsa').value) || 0;
+  const healthInsurance = parseFloat(document.getElementById('pc-insurance').value) || 0;
+  const otherDeductions = parseFloat(document.getElementById('pc-other').value) || 0;
+
+  // Calculate pay periods
+  const payPeriods = {
+    'weekly': 52,
+    'biweekly': 26,
+    'semimonthly': 24,
+    'monthly': 12
+  };
+  
+  const numPayPeriods = payPeriods[payFrequency] || 26;
+  const grossPay = annualSalary / numPayPeriods;
+
+  // Pre-tax deductions
+  const pretaxTotal = contribution401k + hsaDeduction + healthInsurance;
+  const taxableIncome = Math.max(0, grossPay - pretaxTotal);
+
+  // Calculate taxes on taxable income
+  const annualTaxableIncome = taxableIncome * numPayPeriods;
+  const annualFederalTax = calculateFederalTax(annualTaxableIncome, filingStatus);
+  const federalTax = annualFederalTax / numPayPeriods;
+
+  const ficaTax = calculateFICATax(taxableIncome);
+  const stateTax = calculateStateTax(taxableIncome, state);
+
+  // Total deductions
+  const totalDeductions = pretaxTotal + federalTax + ficaTax.total + stateTax + otherDeductions;
+  const netPay = grossPay - totalDeductions;
+
+  // Display results
+  document.getElementById('pc-gross-result').textContent = formatCurrency(grossPay);
+  document.getElementById('pc-pretax-result').textContent = formatCurrency(pretaxTotal);
+  document.getElementById('pc-federal-result').textContent = formatCurrency(federalTax);
+  document.getElementById('pc-fica-result').textContent = formatCurrency(ficaTax.total);
+  document.getElementById('pc-state-result').textContent = formatCurrency(stateTax);
+  document.getElementById('pc-other-ded-result').textContent = formatCurrency(otherDeductions);
+  document.getElementById('pc-net-result').textContent = formatCurrency(netPay);
+  document.getElementById('pc-annual-net').textContent = formatCurrency(netPay * numPayPeriods);
+
+  // Show detailed breakdown
+  document.getElementById('pc-ss-result').textContent = formatCurrency(ficaTax.socialSecurity);
+  document.getElementById('pc-medicare-result').textContent = formatCurrency(ficaTax.medicare);
+
+  // Save to localStorage
+  localStorage.setItem('paycheckData', JSON.stringify({
+    annualSalary, payFrequency, filingStatus, state, 
+    contribution401k, hsaDeduction, healthInsurance, otherDeductions
+  }));
+}
+
+// Load saved tax data from localStorage
+function loadTaxData() {
+  const savedTax = localStorage.getItem('taxData');
+  const savedW2 = localStorage.getItem('w2Data');
+  const savedPaycheck = localStorage.getItem('paycheckData');
+
+  if (savedTax) {
+    try {
+      const data = JSON.parse(savedTax);
+      
+      // Set number of people
+      if (data.numPeople === 2) {
+        document.querySelector('.people-btn[data-people="2"]').click();
+      }
+      
+      document.getElementById('tax-income-1').value = data.income1 || '';
+      document.getElementById('tax-income-2').value = data.income2 || '';
+      document.getElementById('tax-status').value = data.filingStatus || 'single';
+      document.getElementById('tax-state').value = data.state || 'CA';
+      document.getElementById('tax-deductions').value = data.deductions || '';
+      document.getElementById('tax-dependents').value = data.dependents || '';
+    } catch (e) {
+      console.error('Error loading saved tax data:', e);
+    }
+  }
+
+  if (savedW2) {
+    try {
+      const data = JSON.parse(savedW2);
+      
+      if (data.person1) {
+        document.getElementById('w2-gross-1').value = data.person1.grossIncome || '';
+        document.getElementById('w2-federal-1').value = data.person1.federalTax || '';
+        document.getElementById('w2-ss-1').value = data.person1.socialSecurity || '';
+        document.getElementById('w2-medicare-1').value = data.person1.medicare || '';
+      }
+      
+      if (data.person2) {
+        document.getElementById('w2-gross-2').value = data.person2.grossIncome || '';
+        document.getElementById('w2-federal-2').value = data.person2.federalTax || '';
+        document.getElementById('w2-ss-2').value = data.person2.socialSecurity || '';
+        document.getElementById('w2-medicare-2').value = data.person2.medicare || '';
+      }
+      
+      document.getElementById('w2-state').value = data.state || 'CA';
+      document.getElementById('w2-state-tax').value = data.stateTax || '';
+    } catch (e) {
+      console.error('Error loading saved W2 data:', e);
+    }
+  }
+
+  if (savedPaycheck) {
+    try {
+      const data = JSON.parse(savedPaycheck);
+      document.getElementById('pc-annual-salary').value = data.annualSalary || '';
+      document.getElementById('pc-pay-frequency').value = data.payFrequency || 'biweekly';
+      document.getElementById('pc-filing-status').value = data.filingStatus || 'single';
+      document.getElementById('pc-state').value = data.state || 'CA';
+      document.getElementById('pc-401k').value = data.contribution401k || '';
+      document.getElementById('pc-hsa').value = data.hsaDeduction || '';
+      document.getElementById('pc-insurance').value = data.healthInsurance || '';
+      document.getElementById('pc-other').value = data.otherDeductions || '';
+    } catch (e) {
+      console.error('Error loading saved paycheck data:', e);
+    }
+  }
+}
+
+// Setup tax event listeners
+function setupTaxListeners() {
+  // Setup people toggle first
+  setupPeopleToggle();
+
+  const manualTaxForm = document.getElementById('tax-form');
+  const w2Form = document.getElementById('w2-form');
+  const paycheckForm = document.getElementById('pc-form');
+
+  if (manualTaxForm) {
+    manualTaxForm.addEventListener('submit', calculateManualTaxes);
+  }
+  if (w2Form) {
+    w2Form.addEventListener('submit', calculateW2Taxes);
+  }
+  if (paycheckForm) {
+    paycheckForm.addEventListener('submit', calculatePaycheck);
+  }
+
+  // Display current tax year
+  if (taxData && taxData.current_year) {
+    const yearElements = document.querySelectorAll('.tax-year');
+    yearElements.forEach(el => {
+      el.textContent = taxData.current_year;
+    });
+  }
+}
+
+// Initialize taxes module
+async function initializeTaxes() {
+  await loadTaxBracketsData();
+  loadTaxData();
+  setupTaxListeners();
+}
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeTaxes);
+} else {
+  initializeTaxes();
+}

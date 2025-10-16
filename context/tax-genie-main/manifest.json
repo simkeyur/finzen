@@ -1,0 +1,33 @@
+{
+  "name": "Smart Tax Genie - Tax Calculator",
+  "short_name": "Tax Genie",
+  "description": "Calculate your federal and state income taxes with instant estimates",
+  "start_url": "/tax-genie/",
+  "scope": "/tax-genie/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/tax-genie/192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/tax-genie/512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/tax-genie/appicon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["finance", "utilities", "productivity"],
+  "screenshots": []
+}

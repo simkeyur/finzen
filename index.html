@@ -34,6 +34,12 @@
           <button class="tab dropdown-item" data-tab="loan">Auto Loan</button>
         </div>
       </div>
+      <div class="dropdown-container">
+        <button class="dropdown-btn" id="taxes-btn">💰 Taxes & Income</button>
+        <div class="dropdown-menu" id="taxes-menu">
+          <button class="tab dropdown-item" data-tab="tax-calculator">Tax Calculator</button>
+        </div>
+      </div>
     </div>
 
     <button class="settings-icon" id="settings-btn" aria-label="Settings">⚙️</button>
@@ -305,7 +311,461 @@
         </table>
       </div>
     </section>
+
+    <!-- Tax Calculator Section -->
+    <section id="tax-calculator" class="calculator">
+      <!-- Navigation Bar for Manual Entry / W-2 Import -->
+      <nav class="navbar">
+        <button class="nav-tab active" data-view="manual">
+          <span class="nav-tab-icon">✏️</span>
+          <span class="nav-tab-label">Manual Entry</span>
+        </button>
+        <button class="nav-tab" data-view="w2">
+          <span class="nav-tab-icon">📄</span>
+          <span class="nav-tab-label">W-2 Import</span>
+        </button>
+      </nav>
+
+      <!-- Manual Entry View -->
+      <div id="manual-view" class="calculator-view">
+        <h2 style="margin-bottom: 1rem;">Tax Calculator - <span id="tax-year">2025</span></h2>
+        
+        <div class="form-grid">
+          <!-- Number of People -->
+          <div class="form-group full-width">
+            <label class="form-label">Number of People Filing</label>
+            <div class="people-selector">
+              <button type="button" class="people-btn active" data-people="1">1 Person</button>
+              <button type="button" class="people-btn" data-people="2">2 People</button>
+            </div>
+          </div>
+
+          <!-- Person 1 Income -->
+          <div class="form-group">
+            <label for="income1" class="form-label">Person 1 Income</label>
+            <div class="currency-input">
+              <span class="currency-symbol">$</span>
+              <input type="number" id="income1" placeholder="85,000" class="form-input" step="0.01" min="0">
+            </div>
+          </div>
+
+          <!-- Person 2 Income (hidden by default) -->
+          <div class="form-group" id="person2-income-group" style="display: none;">
+            <label for="income2" class="form-label">Person 2 Income</label>
+            <div class="currency-input">
+              <span class="currency-symbol">$</span>
+              <input type="number" id="income2" placeholder="75,000" class="form-input" step="0.01" min="0" value="0">
+            </div>
+          </div>
+
+          <!-- Filing Status -->
+          <div class="form-group" id="filing-status-group">
+            <label for="status" class="form-label">Filing Status</label>
+            <select id="status" class="form-select">
+              <option value="single">Single</option>
+              <option value="head_of_household">Head of Household</option>
+            </select>
+          </div>
+
+          <!-- State -->
+          <div class="form-group">
+            <label for="state" class="form-label">State of Residence</label>
+            <select id="state" class="form-select">
+              <!-- States will be populated by JS -->
+            </select>
+          </div>
+
+          <!-- Dependents -->
+          <div class="form-group">
+            <label for="dependents" class="form-label">Number of Dependents</label>
+            <input type="number" id="dependents" placeholder="0" value="0" class="form-input" min="0" max="20">
+          </div>
+
+          <!-- Advanced Deductions Toggle -->
+          <div class="form-group full-width">
+            <button type="button" id="advanced-toggle" class="advanced-toggle">
+              <span>⚙️ Advanced Deductions (401k, HSA...)</span>
+              <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Advanced Deductions Section (Collapsible) -->
+          <div id="advanced-deductions" class="advanced-deductions collapsed">
+            <!-- Deduction Type -->
+            <div class="form-group full-width">
+              <label class="form-label">Deduction Type</label>
+              <div class="deduction-selector">
+                <button type="button" class="deduction-btn active" data-deduction="standard">Standard</button>
+                <button type="button" class="deduction-btn" data-deduction="itemized">Itemized</button>
+              </div>
+            </div>
+
+            <!-- Itemized Deductions (Hidden by default) -->
+            <div id="itemized-deductions" class="itemized-deductions" style="display: none;">
+              <div class="form-group">
+                <label for="mortgageInterest" class="form-label">Mortgage Interest</label>
+                <div class="currency-input">
+                  <span class="currency-symbol">$</span>
+                  <input type="number" id="mortgageInterest" placeholder="0" value="0" class="form-input" min="0" step="100">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="propertyTaxes" class="form-label">Property Taxes (SALT)</label>
+                <div class="currency-input">
+                  <span class="currency-symbol">$</span>
+                  <input type="number" id="propertyTaxes" placeholder="0" value="0" class="form-input" min="0" step="100">
+                </div>
+                <div class="contribution-info">Max: $10,000</div>
+              </div>
+
+              <div class="form-group">
+                <label for="charitableDonations" class="form-label">Charitable Donations</label>
+                <div class="currency-input">
+                  <span class="currency-symbol">$</span>
+                  <input type="number" id="charitableDonations" placeholder="0" value="0" class="form-input" min="0" step="50">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="medicalExpenses" class="form-label">Medical Expenses</label>
+                <div class="currency-input">
+                  <span class="currency-symbol">$</span>
+                  <input type="number" id="medicalExpenses" placeholder="0" value="0" class="form-input" min="0" step="50">
+                </div>
+                <div class="contribution-info">Only amounts exceeding 7.5% of AGI</div>
+              </div>
+            </div>
+
+            <!-- 401K Contribution -->
+            <div class="form-group">
+              <label for="contribution401k" class="form-label">401(k) Contribution</label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="contribution401k" placeholder="10,000" value="0" class="form-input" min="0" step="100">
+              </div>
+              <div class="contribution-info">
+                <span id="contribution-max">$23,500 per person</span>
+              </div>
+            </div>
+
+            <!-- HSA Contribution -->
+            <div class="form-group">
+              <label for="contributionHsa" class="form-label">HSA Contribution</label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="contributionHsa" placeholder="4,300" value="0" class="form-input" min="0" step="50">
+              </div>
+              <div class="contribution-info">$4,300 per person | $8,550 per family</div>
+            </div>
+
+            <!-- Capital Loss -->
+            <div class="form-group">
+              <label for="capitalLoss" class="form-label">Capital Loss (Stock Market)</label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="capitalLoss" placeholder="3,000" value="0" class="form-input" min="0" step="100">
+              </div>
+              <div class="contribution-info">Max deduction: $3,000</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calculate Button -->
+        <div style="text-align: center; margin: 1.5rem 0;">
+          <button id="calculateBtn" class="calculate-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            </svg>
+            <span id="btn-text">Calculate Taxes</span>
+            <div id="loader" class="loader hidden"></div>
+          </button>
+        </div>
+
+        <!-- Results Display -->
+        <div id="results" class="hidden">
+          <div class="results-summary">
+            <div class="tax-line">
+              <span class="tax-label">Federal Income Tax</span>
+              <span id="federal-tax" class="tax-amount federal-tax">$0</span>
+            </div>
+            <div class="tax-line">
+              <span class="tax-label">State Income Tax</span>
+              <span id="state-tax" class="tax-amount state-tax">$0</span>
+            </div>
+            <div class="tax-line">
+              <span class="tax-label">Social Security Tax</span>
+              <span id="social-security-tax" class="tax-amount fica-tax">$0</span>
+            </div>
+            <div class="tax-line">
+              <span class="tax-label">Medicare Tax</span>
+              <span id="medicare-tax" class="tax-amount fica-tax">$0</span>
+            </div>
+            <div class="tax-line total-line">
+              <span class="tax-label">Total Tax</span>
+              <span id="total-tax" class="tax-amount total-tax">$0</span>
+            </div>
+            <div class="tax-line rate-line">
+              <span class="tax-label">Effective Tax Rate</span>
+              <span id="effective-rate" class="tax-amount effective-rate">0%</span>
+            </div>
+          </div>
+
+          <!-- Tax Explanation -->
+          <div id="tax-explanation" class="tax-explanation hidden">
+            <h3>💡 Your Tax Breakdown</h3>
+            <div id="explanation-content"></div>
+          </div>
+        </div>
+      </div>
+      <!-- End Manual Entry View -->
+    </section>
+
+      <!-- W-2 Import View -->
+      <div id="w2-view" class="calculator-view hidden">
+        <h2 style="margin-bottom: 1rem;">W-2 Based Calculator</h2>
+        <p style="color: #a1a1aa; margin-bottom: 1.5rem;">Import your W-2 to calculate refund or amount owed</p>
+
+        <div class="form-grid">
+          <!-- Filing Status Selection for W-2 -->
+          <div class="form-group">
+            <label for="w2-filing-status" class="form-label">Filing Status</label>
+            <select id="w2-filing-status" class="form-select">
+              <option value="single">Single</option>
+              <option value="married_jointly">Married Filing Jointly</option>
+              <option value="married_separately">Married Filing Separately</option>
+              <option value="head_of_household">Head of Household</option>
+            </select>
+          </div>
+
+          <!-- State Selection for W-2 -->
+          <div class="form-group">
+            <label for="w2-state" class="form-label">State of Residence</label>
+            <select id="w2-state" class="form-select">
+              <!-- States will be populated by JS -->
+            </select>
+          </div>
+        </div>
+
+        <!-- W-2 Import Buttons -->
+        <div class="w2-import-buttons">
+          <button type="button" id="w2-import-person1-btn" class="w2-import-btn">
+            <span class="w2-btn-icon">📄</span>
+            <div class="w2-btn-content">
+              <span class="w2-btn-title">Import Person 1 W-2</span>
+              <span class="w2-btn-subtitle" id="w2-status-person1">Not imported</span>
+            </div>
+          </button>
+          <button type="button" id="w2-import-person2-btn" class="w2-import-btn" style="display: none;">
+            <span class="w2-btn-icon">📄</span>
+            <div class="w2-btn-content">
+              <span class="w2-btn-title">Import Person 2 W-2</span>
+              <span class="w2-btn-subtitle" id="w2-status-person2">Not imported</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Calculate Button -->
+        <div style="text-align: center; margin: 1.5rem 0;">
+          <button id="w2-calculate-btn" class="calculate-btn" disabled>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            </svg>
+            <span id="w2-btn-text">Calculate Taxes</span>
+            <div id="w2-loader" class="loader hidden"></div>
+          </button>
+        </div>
+
+        <!-- W-2 Results Display -->
+        <div id="w2-results" class="hidden">
+          <div class="results-summary">
+            <div class="tax-line">
+              <span class="tax-label">Federal Income Tax</span>
+              <span id="w2-federal-tax" class="tax-amount federal-tax">$0</span>
+            </div>
+            <div class="tax-line">
+              <span class="tax-label">State Income Tax</span>
+              <span id="w2-state-tax" class="tax-amount state-tax">$0</span>
+            </div>
+            <div class="tax-line">
+              <span class="tax-label">Social Security Tax</span>
+              <span id="w2-social-security-tax" class="tax-amount fica-tax">$0</span>
+            </div>
+            <div class="tax-line">
+              <span class="tax-label">Medicare Tax</span>
+              <span id="w2-medicare-tax" class="tax-amount fica-tax">$0</span>
+            </div>
+            <div class="tax-line total-line">
+              <span class="tax-label">Total Tax Owed</span>
+              <span id="w2-total-tax" class="tax-amount total-tax">$0</span>
+            </div>
+            <div class="tax-line withheld-line">
+              <span class="tax-label">Total Withheld</span>
+              <span id="w2-total-withheld" class="tax-amount withheld-amount">$0</span>
+            </div>
+            <div class="tax-line refund-line">
+              <span class="tax-label" id="w2-refund-label">Estimated Refund</span>
+              <span id="w2-refund-amount" class="tax-amount refund-amount">$0</span>
+            </div>
+            <div class="tax-line rate-line">
+              <span class="tax-label">Effective Tax Rate</span>
+              <span id="w2-effective-rate" class="tax-amount effective-rate">0%</span>
+            </div>
+          </div>
+
+          <!-- Tax Explanation -->
+          <div id="w2-tax-explanation" class="tax-explanation hidden">
+            <h3>💡 Your Tax Breakdown</h3>
+            <div id="w2-explanation-content"></div>
+          </div>
+        </div>
+      </div>
+      <!-- End W-2 Import View -->
+    </section>
+
+    <!-- W-2 Import Modal -->
+    <div id="w2-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📄 Import from W-2 Form</h2>
+          <button id="w2-modal-close" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="color: #a1a1aa; margin-bottom: 1.5rem;">Enter the values from your W-2 form boxes</p>
+          
+          <div class="w2-form-grid">
+            <!-- Box 1: Wages -->
+            <div class="form-group">
+              <label for="w2-box1" class="form-label">
+                <span class="box-number">1</span>
+                <span>Wages, tips, other comp.</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box1" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+
+            <!-- Box 2: Federal income tax withheld -->
+            <div class="form-group">
+              <label for="w2-box2" class="form-label">
+                <span class="box-number">2</span>
+                <span>Federal tax withheld</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box2" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+
+            <!-- Box 3: Social Security wages -->
+            <div class="form-group">
+              <label for="w2-box3" class="form-label">
+                <span class="box-number">3</span>
+                <span>Social security wages</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box3" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+
+            <!-- Box 4: Social Security tax withheld -->
+            <div class="form-group">
+              <label for="w2-box4" class="form-label">
+                <span class="box-number">4</span>
+                <span>SS tax withheld</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box4" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+
+            <!-- Box 5: Medicare wages -->
+            <div class="form-group">
+              <label for="w2-box5" class="form-label">
+                <span class="box-number">5</span>
+                <span>Medicare wages and tips</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box5" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+
+            <!-- Box 6: Medicare tax withheld -->
+            <div class="form-group">
+              <label for="w2-box6" class="form-label">
+                <span class="box-number">6</span>
+                <span>Medicare tax withheld</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box6" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+
+            <!-- Box 12: Deferred compensation -->
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label class="form-label">
+                <span class="box-number">12</span>
+                <span>See instructions for box 12</span>
+              </label>
+              <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem;">
+                <div>
+                  <label style="font-size: 0.75rem; color: #71717a; margin-bottom: 0.25rem;">Code</label>
+                  <select id="w2-box12-code" class="form-select">
+                    <option value="">None</option>
+                    <option value="D">D - 401(k)</option>
+                    <option value="E">E - 403(b)</option>
+                    <option value="F">F - SEP</option>
+                    <option value="G">G - 457(b)</option>
+                    <option value="S">S - SIMPLE</option>
+                    <option value="W">W - HSA</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size: 0.75rem; color: #71717a; margin-bottom: 0.25rem;">Amount</label>
+                  <div class="currency-input">
+                    <span class="currency-symbol">$</span>
+                    <input type="number" id="w2-box12-amount" placeholder="0.00" class="form-input" step="0.01" min="0">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Box 17: State income tax -->
+            <div class="form-group">
+              <label for="w2-box17" class="form-label">
+                <span class="box-number">17</span>
+                <span>State income tax</span>
+              </label>
+              <div class="currency-input">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="w2-box17" placeholder="0.00" class="form-input" step="0.01" min="0">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="w2-cancel-btn" class="secondary-btn">Cancel</button>
+            <button type="button" id="w2-import-submit-btn" class="primary-btn">
+              <span id="w2-import-btn-text">Import Values</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paycheck Calculator Section -->
+
   </main>
+  <script src="js/projection.js"></script>
+  <script src="js/home-auto.js"></script>
+  <script src="js/taxes.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
